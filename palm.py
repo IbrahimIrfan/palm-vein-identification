@@ -3,7 +3,7 @@ import numpy as np
 
 hand = "left"
 
-for i in range(20):
+for i in range(10,11):
     print i
     img = cv2.imread(hand + 'Edited/' + hand + str(i) + '.jpg')
 
@@ -50,7 +50,7 @@ for i in range(20):
     ret, thr = cv2.threshold(skel, 5,255, cv2.THRESH_BINARY);
 
     #cv2.imwrite("img/skel.jpg", skel)
-    cv2.imwrite("leftEdited/thr" + str(i) + ".jpg", thr)
+    cv2.imwrite(hand + "Edited/thr" + str(i) + ".jpg", thr)
 
     # SIFT
     #sift = cv2.xfeatures2d.SURF_create()
