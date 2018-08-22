@@ -1,17 +1,54 @@
 import cv2
 import numpy as np
+import tensorflow as tf
+from tensorflow import keras
+from PIL import Image
+import os
+import time
+
+classes = ["left", "right"]
+
+num_right_train = 15
+num_left_train = 15
+
+hand = "right"
+pic = np.array(Image.open(hand + "Edited/thr" + str(0) + ".jpg"))
+train_images = np.array([pic])
+train_labels = np.array([1]*num_right_train + [0]*num_left_train)
+
+for i in range(1, num_right_train):
+    pic = np.array(Image.open(hand + "Edited/thr" + str(i) + ".jpg"))
+    train_images = np.vstack((train_images, np.array([pic])))
 
 hand = "left"
+for i in range(num_left_train):
+    pic = np.array(Image.open(hand + "Edited/thr" + str(i) + ".jpg"))
+    train_images = np.vstack((train_images, np.array([pic])))
 
-for i in range(10,11):
-    print i
-    img = cv2.imread(hand + 'Edited/' + hand + str(i) + '.jpg')
+train_images = train_images / 255.0
+print train_labels
 
+model = keras.Sequential([
+    keras.layers.Flatten(input_shape=(600, 600)),
+    keras.layers.Dense(64, activation=tf.nn.relu),
+    keras.layers.Dense(2, activation=tf.nn.softmax)
+])
+
+model.compile(optimizer=tf.train.AdamOptimizer(), 
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy'])
+
+model.fit(train_images, train_labels, epochs=5)
+
+while raw_input("photo? ") == "y":
+    print "about to take photo"
+    cmd = "raspistill -vf -w 600 -h 600 -roi 0.46,0.34,0.25,0.25 -o test/pic.jpg"
+    os.system(cmd)
+    img = cv2.imread("test/pic.jpg")
     # noise
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     noise = cv2.fastNlMeansDenoising(gray)
     noise = cv2.cvtColor(noise, cv2.COLOR_GRAY2BGR)
-    #cv2.imwrite("img/noise.jpg", noise)
 
     # equalist hist
     kernel = np.ones((7,7),np.uint8)
@@ -19,20 +56,16 @@ for i in range(10,11):
     img_yuv = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
     img_yuv[:,:,0] = cv2.equalizeHist(img_yuv[:,:,0])
     img_output = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
-    #cv2.imwrite("img/equalizeHist.jpg", img_output)
 
     # invert
     inv = cv2.bitwise_not(img_output)
-    #cv2.imwrite("img/inverted.jpg", inv)
 
     # erode
     gray = cv2.cvtColor(inv, cv2.COLOR_BGR2GRAY)
-    size = np.size(gray)
     erosion = cv2.erode(gray,kernel,iterations = 1)
-    #cv2.imwrite("img/eroded.jpg", erosion)
 
     # skel
-    img = gray.copy() # don't clobber original
+    img = gray.copy()
     skel = img.copy()
     skel[:,:] = 0
     kernel = cv2.getStructuringElement(cv2.MORPH_CROSS, (5,5))
@@ -49,13 +82,10 @@ for i in range(10,11):
 
     ret, thr = cv2.threshold(skel, 5,255, cv2.THRESH_BINARY);
 
-    #cv2.imwrite("img/skel.jpg", skel)
-    cv2.imwrite(hand + "Edited/thr" + str(i) + ".jpg", thr)
+    cv2.imwrite("test/thr.jpg", thr)
 
-    # SIFT
-    #sift = cv2.xfeatures2d.SURF_create()
-    #kp = sift.detect(thr,None)
-    #siftImg = cv2.drawKeypoints(thr,kp, thr)
-
-    #cv2.imwrite('img/sift.jpg',siftImg)
-
+    pic = np.array(Image.open("test/thr.jpg"))
+    test_images = np.array([pic])
+    predictions = model.predict(test_images)
+    print "final answer:"
+    print classes[np.argmax(predictions[0])]
