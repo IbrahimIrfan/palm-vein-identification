@@ -53,3 +53,8 @@ print('Test accuracy:', test_acc)
 predictions = model.predict(test_images)
 for i in range(len(predictions)):
     print (classes[np.argmax(predictions[i])], classes[test_labels[i]])
+
+pic = np.array(Image.open("test/thr.jpg"))
+test_images = np.array([pic])
+predictions = model.predict(test_images)
+print classes[np.argmax(predictions[0])]

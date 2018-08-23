@@ -3,30 +3,26 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from PIL import Image
-import os
-import time
+print "training model"
 
 classes = ["left", "right"]
 
-num_right_train = 15
-num_left_train = 15
+num_right_train = 20
+num_left_train = 20
 
-hand = "right"
-pic = np.array(Image.open(hand + "Edited/thr" + str(0) + ".jpg"))
+pic = np.array(Image.open("test/right_thr" + str(0) + ".jpg"))
 train_images = np.array([pic])
 train_labels = np.array([1]*num_right_train + [0]*num_left_train)
 
 for i in range(1, num_right_train):
-    pic = np.array(Image.open(hand + "Edited/thr" + str(i) + ".jpg"))
+    pic = np.array(Image.open("test/right_thr" + str(i) + ".jpg"))
     train_images = np.vstack((train_images, np.array([pic])))
 
-hand = "left"
 for i in range(num_left_train):
-    pic = np.array(Image.open(hand + "Edited/thr" + str(i) + ".jpg"))
+    pic = np.array(Image.open("test/thr" + str(i) + ".jpg"))
     train_images = np.vstack((train_images, np.array([pic])))
 
 train_images = train_images / 255.0
-print train_labels
 
 model = keras.Sequential([
     keras.layers.Flatten(input_shape=(600, 600)),
@@ -40,15 +36,13 @@ model.compile(optimizer=tf.train.AdamOptimizer(),
 
 model.fit(train_images, train_labels, epochs=5)
 
-while raw_input("photo? ") == "y":
-    print "about to take photo"
-    cmd = "raspistill -vf -w 600 -h 600 -roi 0.46,0.34,0.25,0.25 -o test/pic.jpg"
-    os.system(cmd)
+while raw_input("took pic? [y/n]") == "y":
     img = cv2.imread("test/pic.jpg")
     # noise
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     noise = cv2.fastNlMeansDenoising(gray)
     noise = cv2.cvtColor(noise, cv2.COLOR_GRAY2BGR)
+    print "reduced noise"
 
     # equalist hist
     kernel = np.ones((7,7),np.uint8)
@@ -56,13 +50,16 @@ while raw_input("photo? ") == "y":
     img_yuv = cv2.cvtColor(img, cv2.COLOR_BGR2YUV)
     img_yuv[:,:,0] = cv2.equalizeHist(img_yuv[:,:,0])
     img_output = cv2.cvtColor(img_yuv, cv2.COLOR_YUV2BGR)
+    print "equalize hist"
 
     # invert
     inv = cv2.bitwise_not(img_output)
+    print "inverted"
 
     # erode
     gray = cv2.cvtColor(inv, cv2.COLOR_BGR2GRAY)
     erosion = cv2.erode(gray,kernel,iterations = 1)
+    print "eroded"
 
     # skel
     img = gray.copy()
@@ -80,12 +77,15 @@ while raw_input("photo? ") == "y":
         if cv2.countNonZero(img) == 0:
             break
 
+    print "skel done"
     ret, thr = cv2.threshold(skel, 5,255, cv2.THRESH_BINARY);
 
     cv2.imwrite("test/thr.jpg", thr)
 
     pic = np.array(Image.open("test/thr.jpg"))
     test_images = np.array([pic])
+    print "predicting result"
     predictions = model.predict(test_images)
+    print predictions
     print "final answer:"
     print classes[np.argmax(predictions[0])]
